@@ -1,4 +1,3 @@
-html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,26 +6,28 @@ html
     <title>Social Tracker</title>
     <meta name="mobile-web-app-capable" content="yes">
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; color: #333; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        body { font-family: -apple-system, sans-serif; background: #f4f4f4; padding: 15px; color: #333; }
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; }
         .highlight { border: 2px solid #2ecc71; background: #eafaf1; }
-        h2 { color: #2c3e50; margin-bottom: 15px; }
-        .btn { color: white; border: none; cursor: pointer; border-radius: 5px; background:#27ae60; padding:8px 12px; font-size:12px; font-weight: bold; }
-        #receiver-name { font-weight: bold; color: #27ae60; font-size: 1.1em; }
+        h2 { color: #2c3e50; margin-bottom: 20px; font-size: 24px; }
+        .btn { color: white; border: none; cursor: pointer; border-radius: 6px; background:#27ae60; padding:10px 15px; font-size:13px; font-weight: bold; }
+        #receiver-name { font-weight: bold; color: #27ae60; display: block; margin-top: 5px; }
+        .status-paid { color: #27ae60; font-weight: bold; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <h2>Member Tracker</h2>
+    <h2>Social Tracker</h2>
+    
     <div id="payout-info" class="card highlight">
-        <strong>This Month's Receiver:</strong>
-        <p id="receiver-name">Loading...</p>
-        <p>Amount: KES 500</p>
+        <strong>Current Recipient:</strong>
+        <span id="receiver-name">Locating...</span>
+        <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Target: KES 500</p>
     </div>
 
-    <div id="member-list">Fetching your 20 members...</div>
+    <div id="member-list">Fetching members...</div>
 
-    <!-- This line connects your app to the database engine -->
+    <!-- FIXED: Full Supabase library link -->
     <script src="https://jsdelivr.net"></script>
 
     <script>
@@ -36,13 +37,18 @@ html
 
         async function loadMembers() {
             try {
+                // Fetch members
                 const { data: members, error: mError } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
                 if (mError) throw mError;
 
+                // Get current month details
                 const monthName = new Date().toLocaleString('default', { month: 'long' });
                 const currentMonthNum = new Date().getMonth() + 1;
-                const turnThisMonth = ((currentMonthNum - 1) % (members?.length || 1)) + 1;
+                
+                // Rotation logic
+                const turnThisMonth = ((currentMonthNum - 1) % (members.length || 1)) + 1;
 
+                // Fetch payments
                 const { data: payments } = await supabaseClient.from('contributions').select('*').eq('month_name', monthName);
 
                 const listDiv = document.getElementById('member-list');
@@ -62,33 +68,38 @@ html
                     card.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <strong>${m.turn_order}. ${m.name}</strong><br>
-                                <small>${m.phone_number}</small>
+                                <strong style="font-size: 16px;">${m.turn_order}. ${m.name}</strong><br>
+                                <small style="color: #888;">${m.phone_number}</small>
                             </div>
                             <div>
                                 ${hasPaid 
-                                    ? '<span style="color:green; font-weight:bold;">✅ PAID</span>' 
+                                    ? '<span class="status-paid">✅ PAID</span>' 
                                     : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')">Mark Paid</button>`
                                 }
                             </div>
                         </div>
-                        ${isReceiver ? '<div style="margin-top:5px; color:green; font-size:12px;"><b>RECIPIENT</b></div>' : ''}
+                        ${isReceiver ? '<div style="margin-top:8px; color:#27ae60; font-size:12px; font-weight:bold;">✨ RECIPIENT THIS MONTH</div>' : ''}
                     `;
                     listDiv.appendChild(card);
                 });
             } catch (e) {
                 console.error(e);
-                document.getElementById('member-list').innerText = "Database connection error. Ensure your Supabase tables are set up.";
+                document.getElementById('member-list').innerText = "Connection error. Check your Supabase database.";
             }
         }
 
         async function markPaid(memberId, month) {
-            const userInput = prompt("Enter Group Password to confirm payment:");
+            const userInput = prompt("Enter Group Password:");
             if (userInput) {
                 const { data: settings } = await supabaseClient.from('group_settings').select('setting_value').eq('setting_name', 'group_password').single();
 
                 if (settings && userInput === settings.setting_value) {
-                    const { error } = await supabaseClient.from('contributions').insert([{ member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }]);
+                    const { error } = await supabaseClient.from('contributions').insert([{ 
+                        member_id: memberId, 
+                        month_name: month, 
+                        is_paid: true, 
+                        year: new Date().getFullYear() 
+                    }]);
                     if (error) alert("Error saving payment.");
                     else loadMembers();
                 } else {
