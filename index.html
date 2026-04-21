@@ -1,37 +1,61 @@
+const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co/rest/v1/'
+const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+
 async function loadMembers() {
-    // 1. Pull the 20 names from Supabase
-    const { data: members, error } = await supabase
-        .from('members')
-        .select('*')
-        .order('turn_order', { ascending: true });
+    const { data: members } = await supabase.from('members').select('*').order('turn_order', { ascending: true });
+    
+    // Get current month name (e.g., "April")
+    const monthName = new Date().toLocaleString('default', { month: 'long' });
+    const currentMonthNum = new Date().getMonth() + 1;
+    const turnThisMonth = ((currentMonthNum - 1) % members.length) + 1;
 
-    if (members) {
-        const listDiv = document.getElementById('member-list');
-        listDiv.innerHTML = ''; 
+    // Fetch existing payments for THIS month
+    const { data: payments } = await supabase.from('contributions').select('*').eq('month_name', monthName);
 
-        // 2. The "Underwater" Rotation Logic
-        // This picks a number between 1 and 20 based on the current month
-        const currentMonth = new Date().getMonth() + 1; 
-        const turnThisMonth = ((currentMonth - 1) % members.length) + 1;
+    const listDiv = document.getElementById('member-list');
+    listDiv.innerHTML = '';
 
-        members.forEach(m => {
-            const isReceiver = m.turn_order === turnThisMonth;
-            
-            // Update the top "Winner" box
-            if (isReceiver) {
-                document.getElementById('receiver-name').innerText = m.name + " (" + m.phone_number + ")";
-            }
+    members.forEach(m => {
+        const isReceiver = m.turn_order === turnThisMonth;
+        const paymentRecord = payments?.find(p => p.member_id === m.id);
+        const hasPaid = paymentRecord ? paymentRecord.is_paid : false;
 
-            // Create the member list display
-            const card = document.createElement('div');
-            card.className = isReceiver ? 'card highlight' : 'card';
-            card.innerHTML = `
-                <strong>Turn ${m.turn_order}: ${m.name}</strong><br>
-                ${m.phone_number} 
-                ${isReceiver ? '<br><span style="color:green; font-weight:bold;">🟢 CURRENT RECIPIENT</span>' : ''}
-            `;
-            listDiv.appendChild(card);
-        });
+        if (isReceiver) {
+            document.getElementById('receiver-name').innerText = `${m.name} (${m.phone_number})`;
+        }
+
+        const card = document.createElement('div');
+        card.className = isReceiver ? 'card highlight' : 'card';
+        card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong>${m.turn_order}. ${m.name}</strong><br>
+                    <small>${m.phone_number}</small>
+                </div>
+                <div>
+                    ${hasPaid 
+                        ? '<span style="color:green; font-weight:bold;">✅ PAID</span>' 
+                        : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')" style="background:#27ae60; padding:5px 10px; font-size:12px;">Mark Paid</button>`
+                    }
+                </div>
+            </div>
+            ${isReceiver ? '<div style="margin-top:5px; color:green; font-size:12px;"><b>RECIPIENT</b></div>' : ''}
+        `;
+        listDiv.appendChild(card);
+    });
+}
+
+async function markPaid(memberId, month) {
+    const confirmAction = confirm("Confirm you have sent 500/-?");
+    if (confirmAction) {
+        const { error } = await supabase.from('contributions').insert([
+            { member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }
+        ]);
+        
+        if (error) alert("Error saving payment. Try again.");
+        else loadMembers(); // Refresh the list instantly
     }
 }
+
 loadMembers();
