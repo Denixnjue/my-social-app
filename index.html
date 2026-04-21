@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Tracker</title>
+    <!-- This makes it feel like an App -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .highlight { border: 2px solid #2ecc71; background: #eafaf1; }
+        h2 { color: #2c3e50; }
+        .btn { background: #3498db; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; }
+    </style>
+</head>
+<body>
+    <h2>Member Tracker</h2>
+    <div id="payout-info" class="card highlight">
+        <strong>This Month's Receiver:</strong>
+        <p id="receiver-name">Loading...</p>
+        <p>Amount: KES 500</p>
+    </div>
+
+    <div id="member-list">
+        <!-- Members will appear here -->
+    </div>
+
+    <script>
+        // We will link this to your Supabase later. 
+        // For now, here is your 20-person logic:
+        const members = ["Member 1", "Member 2", "Member 3", "Member 4", "Member 5"]; 
+        const currentMonth = new Date().getMonth(); // 0 = Jan, 1 = Feb...
+        const receiverIndex = currentMonth % members.length;
+
+        document.getElementById('receiver-name').innerText = members[receiverIndex];
+    </script>
+</body>
+</html>
