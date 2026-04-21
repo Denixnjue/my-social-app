@@ -6,11 +6,12 @@
     <title>Social Tracker</title>
     <meta name="mobile-web-app-capable" content="yes">
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; color: #333; }
         .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
         .highlight { border: 2px solid #2ecc71; background: #eafaf1; }
-        h2 { color: #2c3e50; margin-bottom: 5px; }
-        .btn { color: white; border: none; cursor: pointer; border-radius: 5px; background:#27ae60; padding:8px 12px; font-size:12px; }
+        h2 { color: #2c3e50; margin-bottom: 15px; }
+        .btn { color: white; border: none; cursor: pointer; border-radius: 5px; background:#27ae60; padding:8px 12px; font-size:12px; font-weight: bold; }
+        #receiver-name { font-weight: bold; color: #27ae60; font-size: 1.1em; }
     </style>
 </head>
 <body>
@@ -22,9 +23,9 @@
         <p>Amount: KES 500</p>
     </div>
 
-    <div id="member-list">Loading members...</div>
+    <div id="member-list">Fetching your 20 members...</div>
 
-    <!-- THIS PART IS CRUCIAL: Loading the engine -->
+    <!-- This line connects your app to the database engine -->
     <script src="https://jsdelivr.net"></script>
 
     <script>
@@ -34,7 +35,9 @@
 
         async function loadMembers() {
             try {
-                const { data: members } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
+                const { data: members, error: mError } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
+                if (mError) throw mError;
+
                 const monthName = new Date().toLocaleString('default', { month: 'long' });
                 const currentMonthNum = new Date().getMonth() + 1;
                 const turnThisMonth = ((currentMonthNum - 1) % (members?.length || 1)) + 1;
@@ -73,7 +76,8 @@
                     listDiv.appendChild(card);
                 });
             } catch (e) {
-                document.getElementById('member-list').innerText = "Error loading data. Check Supabase.";
+                console.error(e);
+                document.getElementById('member-list').innerText = "Database connection error. Ensure your Supabase tables are set up.";
             }
         }
 
@@ -82,7 +86,7 @@
             if (userInput) {
                 const { data: settings } = await supabaseClient.from('group_settings').select('setting_value').eq('setting_name', 'group_password').single();
 
-                if (userInput === settings.setting_value) {
+                if (settings && userInput === settings.setting_value) {
                     const { error } = await supabaseClient.from('contributions').insert([{ member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }]);
                     if (error) alert("Error saving payment.");
                     else loadMembers();
