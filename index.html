@@ -1,17 +1,19 @@
-const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co/rest/v1/'
+// Load Supabase Library First
+const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co'
 const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+// Note: Variable renamed to 'supabaseClient' to avoid conflict with library name
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
 async function loadMembers() {
-    const { data: members } = await supabase.from('members').select('*').order('turn_order', { ascending: true });
+    const { data: members } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
     
-    // Get current month name (e.g., "April")
+    // Get current month name
     const monthName = new Date().toLocaleString('default', { month: 'long' });
     const currentMonthNum = new Date().getMonth() + 1;
-    const turnThisMonth = ((currentMonthNum - 1) % members.length) + 1;
+    const turnThisMonth = ((currentMonthNum - 1) % (members?.length || 1)) + 1;
 
     // Fetch existing payments for THIS month
-    const { data: payments } = await supabase.from('contributions').select('*').eq('month_name', monthName);
+    const { data: payments } = await supabaseClient.from('contributions').select('*').eq('month_name', monthName);
 
     const listDiv = document.getElementById('member-list');
     listDiv.innerHTML = '';
@@ -36,7 +38,7 @@ async function loadMembers() {
                 <div>
                     ${hasPaid 
                         ? '<span style="color:green; font-weight:bold;">✅ PAID</span>' 
-                        : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')" style="background:#27ae60; padding:5px 10px; font-size:12px;">Mark Paid</button>`
+                        : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')" style="background:#27ae60; padding:8px 12px; font-size:12px;">Mark Paid</button>`
                     }
                 </div>
             </div>
@@ -46,15 +48,28 @@ async function loadMembers() {
     });
 }
 
+// PASSWORD PROTECTED MARK PAID FUNCTION
 async function markPaid(memberId, month) {
-    const confirmAction = confirm("Confirm you have sent 500/-?");
-    if (confirmAction) {
-        const { error } = await supabase.from('contributions').insert([
-            { member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }
-        ]);
-        
-        if (error) alert("Error saving payment. Try again.");
-        else loadMembers(); // Refresh the list instantly
+    const userInput = prompt("Enter Group Password to confirm payment:");
+    
+    if (userInput) {
+        // Fetch the password you set in the group_settings table
+        const { data: settings } = await supabaseClient
+            .from('group_settings')
+            .select('setting_value')
+            .eq('setting_name', 'group_password')
+            .single();
+
+        if (userInput === settings.setting_value) {
+            const { error } = await supabaseClient.from('contributions').insert([
+                { member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }
+            ]);
+            
+            if (error) alert("Error saving payment. Try again.");
+            else loadMembers(); 
+        } else {
+            alert("Wrong password! Access denied.");
+        }
     }
 }
 
