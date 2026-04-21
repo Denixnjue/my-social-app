@@ -1,76 +1,98 @@
-// Load Supabase Library First
-const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
-// Note: Variable renamed to 'supabaseClient' to avoid conflict with library name
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Social Tracker</title>
+    <meta name="mobile-web-app-capable" content="yes">
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 10px; }
+        .highlight { border: 2px solid #2ecc71; background: #eafaf1; }
+        h2 { color: #2c3e50; margin-bottom: 5px; }
+        .btn { color: white; border: none; cursor: pointer; border-radius: 5px; background:#27ae60; padding:8px 12px; font-size:12px; }
+    </style>
+</head>
+<body>
 
-async function loadMembers() {
-    const { data: members } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
-    
-    // Get current month name
-    const monthName = new Date().toLocaleString('default', { month: 'long' });
-    const currentMonthNum = new Date().getMonth() + 1;
-    const turnThisMonth = ((currentMonthNum - 1) % (members?.length || 1)) + 1;
+    <h2>Member Tracker</h2>
+    <div id="payout-info" class="card highlight">
+        <strong>This Month's Receiver:</strong>
+        <p id="receiver-name">Loading...</p>
+        <p>Amount: KES 500</p>
+    </div>
 
-    // Fetch existing payments for THIS month
-    const { data: payments } = await supabaseClient.from('contributions').select('*').eq('month_name', monthName);
+    <div id="member-list">Loading members...</div>
 
-    const listDiv = document.getElementById('member-list');
-    listDiv.innerHTML = '';
+    <!-- THIS PART IS CRUCIAL: Loading the engine -->
+    <script src="https://jsdelivr.net"></script>
 
-    members.forEach(m => {
-        const isReceiver = m.turn_order === turnThisMonth;
-        const paymentRecord = payments?.find(p => p.member_id === m.id);
-        const hasPaid = paymentRecord ? paymentRecord.is_paid : false;
+    <script>
+        const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co'
+        const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
+        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
-        if (isReceiver) {
-            document.getElementById('receiver-name').innerText = `${m.name} (${m.phone_number})`;
-        }
+        async function loadMembers() {
+            try {
+                const { data: members } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
+                const monthName = new Date().toLocaleString('default', { month: 'long' });
+                const currentMonthNum = new Date().getMonth() + 1;
+                const turnThisMonth = ((currentMonthNum - 1) % (members?.length || 1)) + 1;
 
-        const card = document.createElement('div');
-        card.className = isReceiver ? 'card highlight' : 'card';
-        card.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <strong>${m.turn_order}. ${m.name}</strong><br>
-                    <small>${m.phone_number}</small>
-                </div>
-                <div>
-                    ${hasPaid 
-                        ? '<span style="color:green; font-weight:bold;">✅ PAID</span>' 
-                        : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')" style="background:#27ae60; padding:8px 12px; font-size:12px;">Mark Paid</button>`
+                const { data: payments } = await supabaseClient.from('contributions').select('*').eq('month_name', monthName);
+
+                const listDiv = document.getElementById('member-list');
+                listDiv.innerHTML = '';
+
+                members.forEach(m => {
+                    const isReceiver = m.turn_order === turnThisMonth;
+                    const paymentRecord = payments?.find(p => p.member_id === m.id);
+                    const hasPaid = paymentRecord ? paymentRecord.is_paid : false;
+
+                    if (isReceiver) {
+                        document.getElementById('receiver-name').innerText = `${m.name} (${m.phone_number})`;
                     }
-                </div>
-            </div>
-            ${isReceiver ? '<div style="margin-top:5px; color:green; font-size:12px;"><b>RECIPIENT</b></div>' : ''}
-        `;
-        listDiv.appendChild(card);
-    });
-}
 
-// PASSWORD PROTECTED MARK PAID FUNCTION
-async function markPaid(memberId, month) {
-    const userInput = prompt("Enter Group Password to confirm payment:");
-    
-    if (userInput) {
-        // Fetch the password you set in the group_settings table
-        const { data: settings } = await supabaseClient
-            .from('group_settings')
-            .select('setting_value')
-            .eq('setting_name', 'group_password')
-            .single();
-
-        if (userInput === settings.setting_value) {
-            const { error } = await supabaseClient.from('contributions').insert([
-                { member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }
-            ]);
-            
-            if (error) alert("Error saving payment. Try again.");
-            else loadMembers(); 
-        } else {
-            alert("Wrong password! Access denied.");
+                    const card = document.createElement('div');
+                    card.className = isReceiver ? 'card highlight' : 'card';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${m.turn_order}. ${m.name}</strong><br>
+                                <small>${m.phone_number}</small>
+                            </div>
+                            <div>
+                                ${hasPaid 
+                                    ? '<span style="color:green; font-weight:bold;">✅ PAID</span>' 
+                                    : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')">Mark Paid</button>`
+                                }
+                            </div>
+                        </div>
+                        ${isReceiver ? '<div style="margin-top:5px; color:green; font-size:12px;"><b>RECIPIENT</b></div>' : ''}
+                    `;
+                    listDiv.appendChild(card);
+                });
+            } catch (e) {
+                document.getElementById('member-list').innerText = "Error loading data. Check Supabase.";
+            }
         }
-    }
-}
 
-loadMembers();
+        async function markPaid(memberId, month) {
+            const userInput = prompt("Enter Group Password to confirm payment:");
+            if (userInput) {
+                const { data: settings } = await supabaseClient.from('group_settings').select('setting_value').eq('setting_name', 'group_password').single();
+
+                if (userInput === settings.setting_value) {
+                    const { error } = await supabaseClient.from('contributions').insert([{ member_id: memberId, month_name: month, is_paid: true, year: new Date().getFullYear() }]);
+                    if (error) alert("Error saving payment.");
+                    else loadMembers();
+                } else {
+                    alert("Wrong password!");
+                }
+            }
+        }
+
+        loadMembers();
+    </script>
+</body>
+</html>
