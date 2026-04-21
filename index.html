@@ -1,31 +1,37 @@
-<!-- Load Supabase Library -->
-<script src="https://jsdelivr.net"></script>
+async function loadMembers() {
+    // 1. Pull the 20 names from Supabase
+    const { data: members, error } = await supabase
+        .from('members')
+        .select('*')
+        .order('turn_order', { ascending: true });
 
-<script>
-    // 1. Setup Connection (Paste your keys here)
-    const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co/rest/v1/'
-    const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
+    if (members) {
+        const listDiv = document.getElementById('member-list');
+        listDiv.innerHTML = ''; 
 
-    // 2. Function to fetch and show members
-    async function loadMembers() {
-        const { data, error } = await supabase
-            .from('members')
-            .select('*')
-            .order('turn_order', { ascending: true })
+        // 2. The "Underwater" Rotation Logic
+        // This picks a number between 1 and 20 based on the current month
+        const currentMonth = new Date().getMonth() + 1; 
+        const turnThisMonth = ((currentMonth - 1) % members.length) + 1;
 
-        if (data) {
-            const listDiv = document.getElementById('member-list');
-            listDiv.innerHTML = ''; // Clear loading text
+        members.forEach(m => {
+            const isReceiver = m.turn_order === turnThisMonth;
             
-            data.forEach(m => {
-                const card = document.createElement('div');
-                card.className = 'card';
-                card.innerHTML = `<strong>${m.turn_order}. ${m.name}</strong><br>${m.phone_number}`;
-                listDiv.appendChild(card);
-            });
-        }
-    }
+            // Update the top "Winner" box
+            if (isReceiver) {
+                document.getElementById('receiver-name').innerText = m.name + " (" + m.phone_number + ")";
+            }
 
-    loadMembers();
-</script>
+            // Create the member list display
+            const card = document.createElement('div');
+            card.className = isReceiver ? 'card highlight' : 'card';
+            card.innerHTML = `
+                <strong>Turn ${m.turn_order}: ${m.name}</strong><br>
+                ${m.phone_number} 
+                ${isReceiver ? '<br><span style="color:green; font-weight:bold;">🟢 CURRENT RECIPIENT</span>' : ''}
+            `;
+            listDiv.appendChild(card);
+        });
+    }
+}
+loadMembers();
