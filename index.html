@@ -3,53 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Social Tracker</title>
+    <title>Chama Tracker & Bank</title>
     <meta name="mobile-web-app-capable" content="yes">
+    <!-- Using Google Fonts for a more "Bank" feel -->
+    <link href="https://googleapis.com" rel="stylesheet">
     <style>
-        body { font-family: -apple-system, sans-serif; background: #f4f4f4; padding: 15px; color: #333; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 12px; }
-        .highlight { border: 2px solid #2ecc71; background: #eafaf1; }
-        h2 { color: #2c3e50; margin-bottom: 20px; font-size: 24px; }
-        .btn { color: white; border: none; cursor: pointer; border-radius: 6px; background:#27ae60; padding:10px 15px; font-size:13px; font-weight: bold; }
-        #receiver-name { font-weight: bold; color: #27ae60; display: block; margin-top: 5px; }
-        .status-paid { color: #27ae60; font-weight: bold; font-size: 14px; }
+        :root {
+            --primary: #27ae60;
+            --dark: #2c3e50;
+            --bg: #f8f9fa;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg); padding: 20px; color: #333; max-width: 500px; margin: auto; }
+        h2 { color: var(--dark); font-weight: 800; letter-spacing: -1px; margin-bottom: 5px; }
+        .subtitle { color: #666; margin-bottom: 25px; font-size: 14px; }
+        
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #eee; transition: 0.3s; }
+        .highlight { border: 2px solid var(--primary); background: #f0fff4; }
+        
+        .btn { color: white; border: none; cursor: pointer; border-radius: 8px; background: var(--primary); padding: 10px 20px; font-size: 13px; font-weight: 600; box-shadow: 0 4px 0 #1e8449; }
+        .btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1e8449; }
+        
+        #receiver-name { font-weight: 800; color: var(--primary); display: block; font-size: 18px; margin-top: 5px; }
+        .status-paid { background: #eafaf1; color: var(--primary); font-weight: bold; padding: 5px 12px; border-radius: 20px; font-size: 12px; border: 1px solid var(--primary); }
+        
+        .badge { font-size: 10px; text-transform: uppercase; background: #eee; padding: 4px 8px; border-radius: 4px; font-weight: bold; color: #666; }
     </style>
 </head>
 <body>
 
-    <h2>Social Tracker</h2>
+    <h2>Chama Tracker</h2>
+    <p class="subtitle">Future Bank of Members</p>
     
     <div id="payout-info" class="card highlight">
-        <strong>Current Recipient:</strong>
+        <span class="badge" style="background: #27ae60; color: white;">Recipient this Month</span>
         <span id="receiver-name">Locating...</span>
-        <p style="margin: 5px 0 0 0; font-size: 14px; color: #666;">Target: KES 500</p>
+        <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Monthly Contribution: <strong>KES 1,000</strong></p>
     </div>
 
     <div id="member-list">Fetching members...</div>
 
-    <!-- FIXED: Full Supabase library link -->
+    <!-- FIXED: Correct Supabase Library -->
     <script src="https://jsdelivr.net"></script>
 
     <script>
+        // Your specific credentials
         const SUPABASE_URL = 'https://ulhrijosiwhxtseivgoo.supabase.co'
-        const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b'
+        const SUPABASE_KEY = 'sb_publishable_kbR0lWc7EV9Fek4jPyUuVA_DK5SUJ2b' // NOTE: Ensure this is your PUBLIC key
         const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY)
 
         async function loadMembers() {
             try {
-                // Fetch members
-                const { data: members, error: mError } = await supabaseClient.from('members').select('*').order('turn_order', { ascending: true });
+                // 1. Fetch Members
+                const { data: members, error: mError } = await supabaseClient
+                    .from('members')
+                    .select('*')
+                    .order('turn_order', { ascending: true });
+                
                 if (mError) throw mError;
 
-                // Get current month details
-                const monthName = new Date().toLocaleString('default', { month: 'long' });
+                // 2. Logic for turn rotation
                 const currentMonthNum = new Date().getMonth() + 1;
-                
-                // Rotation logic
                 const turnThisMonth = ((currentMonthNum - 1) % (members.length || 1)) + 1;
+                const monthName = new Date().toLocaleString('default', { month: 'long' });
 
-                // Fetch payments
-                const { data: payments } = await supabaseClient.from('contributions').select('*').eq('month_name', monthName);
+                // 3. Fetch current month's contributions
+                const { data: payments } = await supabaseClient
+                    .from('contributions')
+                    .select('*')
+                    .eq('month_name', monthName);
 
                 const listDiv = document.getElementById('member-list');
                 listDiv.innerHTML = '';
@@ -60,7 +81,7 @@
                     const hasPaid = paymentRecord ? paymentRecord.is_paid : false;
 
                     if (isReceiver) {
-                        document.getElementById('receiver-name').innerText = `${m.name} (${m.phone_number})`;
+                        document.getElementById('receiver-name').innerText = `${m.name}`;
                     }
 
                     const card = document.createElement('div');
@@ -68,43 +89,44 @@
                     card.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <strong style="font-size: 16px;">${m.turn_order}. ${m.name}</strong><br>
-                                <small style="color: #888;">${m.phone_number}</small>
+                                <span class="badge">Turn ${m.turn_order}</span>
+                                <div style="font-weight: 600; font-size: 16px; margin-top: 4px;">${m.name}</div>
                             </div>
                             <div>
                                 ${hasPaid 
                                     ? '<span class="status-paid">✅ PAID</span>' 
-                                    : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')">Mark Paid</button>`
+                                    : `<button class="btn" onclick="markPaid(${m.id}, '${monthName}')">Pay 1000</button>`
                                 }
                             </div>
                         </div>
-                        ${isReceiver ? '<div style="margin-top:8px; color:#27ae60; font-size:12px; font-weight:bold;">✨ RECIPIENT THIS MONTH</div>' : ''}
                     `;
                     listDiv.appendChild(card);
                 });
             } catch (e) {
                 console.error(e);
-                document.getElementById('member-list').innerText = "Connection error. Check your Supabase database.";
+                document.getElementById('member-list').innerHTML = `<p style="color:red">Error: Ensure your Supabase tables 'members' and 'contributions' are set up correctly.</p>`;
             }
         }
 
         async function markPaid(memberId, month) {
-            const userInput = prompt("Enter Group Password:");
-            if (userInput) {
-                const { data: settings } = await supabaseClient.from('group_settings').select('setting_value').eq('setting_name', 'group_password').single();
+            const userInput = prompt("Enter Admin Password to confirm payment:");
+            if (!userInput) return;
 
-                if (settings && userInput === settings.setting_value) {
-                    const { error } = await supabaseClient.from('contributions').insert([{ 
-                        member_id: memberId, 
-                        month_name: month, 
-                        is_paid: true, 
-                        year: new Date().getFullYear() 
-                    }]);
-                    if (error) alert("Error saving payment.");
-                    else loadMembers();
-                } else {
-                    alert("Wrong password!");
-                }
+            // Simple security check (Replace with real Auth later)
+            const { data: settings } = await supabaseClient.from('group_settings').select('setting_value').eq('setting_name', 'group_password').single();
+
+            if (settings && userInput === settings.setting_value) {
+                const { error } = await supabaseClient.from('contributions').insert([{ 
+                    member_id: memberId, 
+                    month_name: month, 
+                    is_paid: true, 
+                    year: new Date().getFullYear() 
+                }]);
+                
+                if (error) alert("Database Error: " + error.message);
+                else loadMembers();
+            } else {
+                alert("Incorrect Password!");
             }
         }
 
